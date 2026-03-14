@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 const stats = [
   { label: "Total Faculty", value: "156", icon: Users, color: "text-primary" },
@@ -63,7 +63,7 @@ const AdminDashboard = () => {
     navigate("/");
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     const filtered = exportDept === "all"
       ? allFacultyData
       : allFacultyData.filter((f) => f.dept === exportDept);
@@ -73,47 +73,56 @@ const AdminDashboard = () => {
       return;
     }
 
-    const exportData = filtered.map((f) => ({
-      "Faculty Name": f.name,
-      "Department": f.dept,
-      "Email": f.email,
-      "Role": f.role,
-      "Event Type": f.eventType,
-      "Event Name": f.eventName,
-      "Event Date": f.eventDate,
-      "Venue": f.venue,
-      "Verification Status": f.status,
-      "Points Earned": f.points,
-      "Academic Year": f.academicYear,
-    }));
+    const wb = new ExcelJS.Workbook();
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Faculty Data");
+    // Faculty Data sheet
+    const ws = wb.addWorksheet("Faculty Data");
+    const facultyColumns = [
+      "Faculty Name", "Department", "Email", "Role", "Event Type",
+      "Event Name", "Event Date", "Venue", "Verification Status",
+      "Points Earned", "Academic Year",
+    ];
+    ws.addRow(facultyColumns);
+    for (const f of filtered) {
+      ws.addRow([
+        f.name, f.dept, f.email, f.role, f.eventType,
+        f.eventName, f.eventDate, f.venue, f.status,
+        f.points, f.academicYear,
+      ]);
+    }
 
-    // Add department summary sheet
+    // Department Summary sheet
     const deptSummary = exportDept === "all"
       ? departmentData
       : departmentData.filter((d) => d.dept === exportDept);
 
-    const summarySheet = XLSX.utils.json_to_sheet(deptSummary.map((d) => ({
-      "Department": d.dept,
-      "Total Faculty": d.faculty,
-      "Total Uploads": d.uploads,
-      "Verified": d.verified,
-      "Pending": d.pending,
-      "Rejected": d.rejected,
-      "Duplicates": d.duplicates,
-      "Total Points": d.points,
-      "Verification Rate": `${Math.round(d.verified / d.uploads * 100)}%`,
-    })));
-    XLSX.utils.book_append_sheet(wb, summarySheet, "Department Summary");
+    const summarySheet = wb.addWorksheet("Department Summary");
+    const summaryColumns = [
+      "Department", "Total Faculty", "Total Uploads", "Verified",
+      "Pending", "Rejected", "Duplicates", "Total Points", "Verification Rate",
+    ];
+    summarySheet.addRow(summaryColumns);
+    for (const d of deptSummary) {
+      summarySheet.addRow([
+        d.dept, d.faculty, d.uploads, d.verified,
+        d.pending, d.rejected, d.duplicates, d.points,
+        `${Math.round(d.verified / d.uploads * 100)}%`,
+      ]);
+    }
 
     const fileName = exportDept === "all"
       ? "NAAC_C6_All_Departments_2025-2026.xlsx"
       : `NAAC_C6_${exportDept.replace(/\s/g, "_")}_2025-2026.xlsx`;
 
-    XLSX.writeFile(wb, fileName);
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+
     toast({ title: "Excel exported!", description: `${filtered.length} records exported to ${fileName}` });
   };
 

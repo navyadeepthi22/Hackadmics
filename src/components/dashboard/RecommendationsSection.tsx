@@ -5,124 +5,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const upcomingEvents = [
-  {
-    id: 1,
-    title: "5-Day FDP on Deep Learning & NLP",
-    organizer: "IIT Madras",
-    date: "Apr 14–18, 2026",
-    location: "Online",
-    type: "FDP",
-    relevance: 96,
-    tags: ["AI", "Machine Learning", "NLP"],
-    link: "#",
-  },
-  {
-    id: 2,
-    title: "International Webinar on Quantum Computing",
-    organizer: "MIT & IEEE",
-    date: "Apr 22, 2026",
-    location: "Virtual",
-    type: "Webinar",
-    relevance: 91,
-    tags: ["Quantum Computing", "Emerging Tech"],
-    link: "#",
-  },
-  {
-    id: 3,
-    title: "National Seminar on Cybersecurity Trends 2026",
-    organizer: "NIT Trichy",
-    date: "May 5–6, 2026",
-    location: "NIT Trichy, Tamil Nadu",
-    type: "Seminar",
-    relevance: 88,
-    tags: ["Cybersecurity", "Network Security"],
-    link: "#",
-  },
-  {
-    id: 4,
-    title: "Workshop on IoT & Edge Computing",
-    organizer: "Anna University",
-    date: "May 12–14, 2026",
-    location: "Chennai",
-    type: "Workshop",
-    relevance: 85,
-    tags: ["IoT", "Edge Computing"],
-    link: "#",
-  },
-  {
-    id: 5,
-    title: "AICTE Sponsored FDP on Blockchain Technology",
-    organizer: "VIT Vellore",
-    date: "Jun 2–6, 2026",
-    location: "Hybrid",
-    type: "FDP",
-    relevance: 82,
-    tags: ["Blockchain", "Distributed Systems"],
-    link: "#",
-  },
-  {
-    id: 6,
-    title: "International Conference on Data Science & AI",
-    organizer: "Stanford University & ACM",
-    date: "Jun 15–17, 2026",
-    location: "Virtual",
-    type: "Conference",
-    relevance: 79,
-    tags: ["Data Science", "AI", "Research"],
-    link: "#",
-  },
-];
-
-const newsItems = [
-  {
-    id: 1,
-    title: "AICTE Announces New Guidelines for Faculty FDP Credits",
-    source: "AICTE Official",
-    date: "Mar 12, 2026",
-    summary: "Faculty can now earn additional credits for completing AICTE-recognized FDPs in emerging technologies including AI, Blockchain, and Cybersecurity.",
-    category: "Policy",
-  },
-  {
-    id: 2,
-    title: "UGC Mandates Digital Literacy Programs Across Universities",
-    source: "UGC India",
-    date: "Mar 10, 2026",
-    summary: "Universities to implement mandatory digital literacy workshops for all faculty members by 2027.",
-    category: "Policy",
-  },
-  {
-    id: 3,
-    title: "Top 10 Emerging Research Areas in Computer Science for 2026",
-    source: "IEEE Spectrum",
-    date: "Mar 8, 2026",
-    summary: "Generative AI, quantum machine learning, and neuromorphic computing lead the list of trending research domains.",
-    category: "Research",
-  },
-  {
-    id: 4,
-    title: "New Funding Opportunities for Faculty-Led Research Projects",
-    source: "DST India",
-    date: "Mar 5, 2026",
-    summary: "Department of Science & Technology opens applications for grants up to ₹25 lakhs for interdisciplinary research projects.",
-    category: "Funding",
-  },
-];
-
-const researchSuggestions = [
-  { area: "Explainable AI in Healthcare", trend: "Rising", papers: 342, relevance: 94 },
-  { area: "Federated Learning for Privacy", trend: "Hot", papers: 218, relevance: 91 },
-  { area: "Edge AI for Smart Cities", trend: "Rising", papers: 185, relevance: 87 },
-  { area: "Sustainable Computing", trend: "Emerging", papers: 124, relevance: 83 },
-];
+import { useAppStore } from "@/lib/store";
 
 const RecommendationsSection = () => {
   const [filterType, setFilterType] = useState<string>("all");
+  const { getRecommendedEvents, getRecommendedNews, getRecommendedResearch } = useAppStore();
+
+  const events = getRecommendedEvents();
+  const news = getRecommendedNews();
+  const research = getRecommendedResearch();
 
   const filteredEvents = filterType === "all"
-    ? upcomingEvents
-    : upcomingEvents.filter((e) => e.type === filterType);
+    ? events
+    : events.filter((e) => e.type === filterType);
 
   return (
     <div className="space-y-6">
@@ -166,6 +61,7 @@ const RecommendationsSection = () => {
                   <SelectItem value="Seminar">Seminar</SelectItem>
                   <SelectItem value="Workshop">Workshop</SelectItem>
                   <SelectItem value="Conference">Conference</SelectItem>
+                  <SelectItem value="Hackathon">Hackathon</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -203,19 +99,20 @@ const RecommendationsSection = () => {
         <TabsContent value="news" className="space-y-4 mt-4">
           <p className="text-sm text-muted-foreground">Latest updates relevant to your academic interests</p>
           <div className="space-y-3">
-            {newsItems.map((news) => (
-              <Card key={news.id} className="p-4 hover:shadow-md transition-shadow">
+            {news.map((item) => (
+              <Card key={item.id} className="p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-gamification/30 text-gamification">
-                        {news.category}
+                        {item.category}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">{news.date}</span>
+                      <span className="text-xs text-muted-foreground">{item.date}</span>
+                      <Badge className="bg-success/10 text-success border-0 text-[10px]">{item.relevance}% relevant</Badge>
                     </div>
-                    <h3 className="font-display font-semibold text-sm text-foreground">{news.title}</h3>
-                    <p className="text-xs text-muted-foreground mt-1">{news.summary}</p>
-                    <p className="text-xs text-primary mt-2 font-medium">Source: {news.source}</p>
+                    <h3 className="font-display font-semibold text-sm text-foreground">{item.title}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">{item.summary}</p>
+                    <p className="text-xs text-primary mt-2 font-medium">Source: {item.source}</p>
                   </div>
                 </div>
               </Card>
@@ -227,22 +124,22 @@ const RecommendationsSection = () => {
         <TabsContent value="research" className="space-y-4 mt-4">
           <p className="text-sm text-muted-foreground">Trending research areas matching your profile</p>
           <div className="space-y-3">
-            {researchSuggestions.map((research) => (
-              <Card key={research.area} className="p-4 hover:shadow-md transition-shadow">
+            {research.map((item) => (
+              <Card key={item.area} className="p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-display font-semibold text-sm text-foreground">{research.area}</h3>
-                    <p className="text-xs text-muted-foreground mt-1">{research.papers} recent papers published</p>
+                    <h3 className="font-display font-semibold text-sm text-foreground">{item.area}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">{item.papers} recent papers published</p>
                   </div>
                   <div className="text-right">
                     <Badge className={`text-xs border-0 ${
-                      research.trend === "Hot" ? "bg-destructive/10 text-destructive" :
-                      research.trend === "Rising" ? "bg-gamification/10 text-gamification" :
+                      item.trend === "Hot" ? "bg-destructive/10 text-destructive" :
+                      item.trend === "Rising" ? "bg-gamification/10 text-gamification" :
                       "bg-primary/10 text-primary"
                     }`}>
-                      {research.trend}
+                      {item.trend}
                     </Badge>
-                    <p className="text-xs text-success font-display font-semibold mt-1">{research.relevance}% relevant</p>
+                    <p className="text-xs text-success font-display font-semibold mt-1">{item.relevance}% relevant</p>
                   </div>
                 </div>
               </Card>
