@@ -1,51 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, X, Send, Bot, User, Sparkles } from "lucide-react";
+import { MessageSquare, X, Send, Bot, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-const QUICK_QUESTIONS = [
-  "How do I upload a certificate?",
-  "What file formats are accepted?",
-  "How are points calculated?",
-  "What is NAAC Criteria 6?",
-  "What is the current academic year?",
-  "How do I check my verification status?",
-  "Why was my document rejected?",
-  "How to become a resource person?",
-  "What are the recommendations for me?",
-  "How does duplicate detection work?",
-];
-
-const RESPONSES: Record<string, string> = {
-  "How do I upload a certificate?": "Navigate to **Upload Documents** from the sidebar. Drag and drop your certificate (PDF, JPG, PNG up to 10MB) into the upload zone. Our AI will automatically extract metadata like your name, event date, and venue. Select your role and event type, then click Submit.",
-  "What file formats are accepted?": "We accept **PDF**, **JPG**, **JPEG**, and **PNG** files up to **10MB** in size. PDFs are recommended for best AI extraction accuracy.",
-  "How are points calculated?": "Points are awarded based on your role:\n- **Resource Person**: 60 points\n- **Organizer**: 50 points\n- **Co-organizer**: 40 points\n- **Participant/Attendee**: 30 points\n\nBonus points for verified certificates!",
-  "What is NAAC Criteria 6?": "NAAC Criteria 6 covers **Governance, Leadership and Management**. It evaluates institutional vision, faculty empowerment, financial management, and quality assurance mechanisms. Your document uploads contribute to sub-criteria 6.3 (Faculty Empowerment Strategies).",
-  "What is the current academic year?": "The current academic year is **July 2025 – June 2026**. Only documents with event dates falling within this period will be accepted for verification. Documents outside this range will be automatically rejected.",
-  "How do I check my verification status?": "Go to **My Activity** from the sidebar. Each document shows its current status:\n- 🟢 **Verified** – AI validated and within academic year\n- 🟡 **Pending** – Under review\n- 🔴 **Rejected** – Invalid academic year or needs re-upload",
-  "Why was my document rejected?": "Documents can be rejected for several reasons:\n1. **Academic Year Mismatch** – The event date is not within July 2025 – June 2026\n2. **Invalid Certificate** – QR code validation failed\n3. **Duplicate Detected** – This document was already uploaded\n4. **Unreadable Content** – AI couldn't extract metadata\n\nCheck **My Activity** for the specific rejection reason.",
-  "How to become a resource person?": "To be recognized as a **Resource Person**, upload the event certificate where you are listed as a speaker/trainer. Select 'Resource Person' from the role dropdown. Verified resource person activities earn the highest points (60 pts) and unlock sponsor recommendations.",
-  "What are the recommendations for me?": "Check the **Recommendations** tab in the sidebar! It shows:\n- 📅 **Upcoming FDPs, webinars & events** from other universities matched to your interests\n- 📰 **Latest news** on AICTE/UGC policies and funding opportunities\n- 📚 **Research trends** aligned with your academic profile\n\nAll recommendations are personalized based on your upload history.",
-  "How does duplicate detection work?": "Our system uses **AI-powered cybersecurity tools** to detect duplicates:\n- File hash comparison for exact matches\n- Metadata similarity analysis for near-duplicates\n- Cross-faculty duplicate checking across departments\n\nDuplicate submissions are flagged and won't earn points.",
-};
-
-// Generate follow-up suggestions based on last question
-function getSuggestions(lastQuestion: string): string[] {
-  const suggestionMap: Record<string, string[]> = {
-    "How do I upload a certificate?": ["What file formats are accepted?", "What is the current academic year?", "How are points calculated?"],
-    "What file formats are accepted?": ["How do I upload a certificate?", "Why was my document rejected?"],
-    "How are points calculated?": ["How to become a resource person?", "What are the recommendations for me?"],
-    "What is NAAC Criteria 6?": ["How are points calculated?", "How do I upload a certificate?"],
-    "What is the current academic year?": ["Why was my document rejected?", "How do I upload a certificate?"],
-    "How do I check my verification status?": ["Why was my document rejected?", "How does duplicate detection work?"],
-    "Why was my document rejected?": ["What is the current academic year?", "How does duplicate detection work?", "How do I upload a certificate?"],
-    "How to become a resource person?": ["How are points calculated?", "What are the recommendations for me?"],
-    "What are the recommendations for me?": ["How to become a resource person?", "How are points calculated?"],
-    "How does duplicate detection work?": ["Why was my document rejected?", "How do I check my verification status?"],
-  };
-  return suggestionMap[lastQuestion] || QUICK_QUESTIONS.slice(0, 3);
-}
+import { generateResponse, extractEntities } from "@/lib/chatbotEngine";
 
 interface Message {
   id: number;
@@ -53,13 +11,20 @@ interface Message {
   content: string;
 }
 
+const INITIAL_SUGGESTIONS = [
+  "How do I upload a certificate?",
+  "How are points calculated?",
+  "What is NAAC Criteria 6?",
+  "How does duplicate detection work?",
+];
+
 const ChatbotFAB = () => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { id: 0, role: "bot", content: "Hi! I'm your NAAC Criteria 6 assistant. Ask me about uploads, verification, points, recommendations, or academic year policies!" },
+    { id: 0, role: "bot", content: "Hi! I'm your NAAC Criteria 6 assistant. Ask me about uploads, verification, points, recommendations, duplicate detection, or academic year policies!" },
   ]);
   const [input, setInput] = useState("");
-  const [lastUserQuestion, setLastUserQuestion] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>(INITIAL_SUGGESTIONS);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,15 +33,26 @@ const ChatbotFAB = () => {
 
   const handleSend = (text: string) => {
     if (!text.trim()) return;
+
     const userMsg: Message = { id: Date.now(), role: "user", content: text };
-    const response = RESPONSES[text] || "I'm here to help with NAAC Criteria 6 queries. Try asking about document uploads, academic year validation, points calculation, recommendations, or verification status.";
-    const botMsg: Message = { id: Date.now() + 1, role: "bot", content: response };
+
+    // Extract entities for potential contextual enrichment
+    const entities = extractEntities(text);
+
+    // Generate response using RAG-style retrieval
+    const { response, followUps } = generateResponse(text);
+
+    // Add entity context if relevant
+    let enrichedResponse = response;
+    if (entities.eventType && !response.toLowerCase().includes(entities.eventType.toLowerCase())) {
+      enrichedResponse += `\n\nI noticed you mentioned **${entities.eventType}** \u2014 let me know if you need specific info about ${entities.eventType} events!`;
+    }
+
+    const botMsg: Message = { id: Date.now() + 1, role: "bot", content: enrichedResponse };
     setMessages((prev) => [...prev, userMsg, botMsg]);
-    setLastUserQuestion(text);
+    setSuggestions(followUps);
     setInput("");
   };
-
-  const suggestions = lastUserQuestion ? getSuggestions(lastUserQuestion) : QUICK_QUESTIONS.slice(0, 4);
 
   return (
     <>
@@ -104,7 +80,7 @@ const ChatbotFAB = () => {
               <Bot className="w-5 h-5" />
               <div>
                 <p className="font-display font-semibold text-sm">NAAC Assistant</p>
-                <p className="text-xs opacity-80">Ask about criteria 6, uploads, recommendations & more</p>
+                <p className="text-xs opacity-80">RAG-powered &bull; Ask about criteria 6, uploads & more</p>
               </div>
             </div>
 

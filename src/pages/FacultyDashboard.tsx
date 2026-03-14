@@ -11,6 +11,7 @@ import LeaderboardSection from "@/components/dashboard/LeaderboardSection";
 import OverviewSection from "@/components/dashboard/OverviewSection";
 import RecommendationsSection from "@/components/dashboard/RecommendationsSection";
 import ChatbotFAB from "@/components/ChatbotFAB";
+import { AppProvider } from "@/lib/store";
 
 type Tab = "overview" | "upload" | "activity" | "leaderboard" | "recommendations";
 
@@ -22,7 +23,7 @@ const NAV_ITEMS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "recommendations", label: "Recommendations", icon: Lightbulb },
 ];
 
-const FacultyDashboard = () => {
+const FacultyDashboardContent = () => {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
@@ -119,5 +120,11 @@ const FacultyDashboard = () => {
     </div>
   );
 };
+
+const FacultyDashboard = () => (
+  <AppProvider>
+    <FacultyDashboardContent />
+  </AppProvider>
+);
 
 export default FacultyDashboard;
