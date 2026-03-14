@@ -2,22 +2,24 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, LayoutDashboard, Trophy, Activity, MessageSquare,
-  LogOut, ChevronLeft, ChevronRight, GraduationCap, FileText
+  LogOut, ChevronLeft, ChevronRight, GraduationCap, FileText, Lightbulb
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import UploadSection from "@/components/dashboard/UploadSection";
 import ActivitySection from "@/components/dashboard/ActivitySection";
 import LeaderboardSection from "@/components/dashboard/LeaderboardSection";
 import OverviewSection from "@/components/dashboard/OverviewSection";
+import RecommendationsSection from "@/components/dashboard/RecommendationsSection";
 import ChatbotFAB from "@/components/ChatbotFAB";
 
-type Tab = "overview" | "upload" | "activity" | "leaderboard";
+type Tab = "overview" | "upload" | "activity" | "leaderboard" | "recommendations";
 
 const NAV_ITEMS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "overview", label: "Dashboard", icon: LayoutDashboard },
   { id: "upload", label: "Upload Documents", icon: Upload },
   { id: "activity", label: "My Activity", icon: Activity },
   { id: "leaderboard", label: "Leaderboard", icon: Trophy },
+  { id: "recommendations", label: "Recommendations", icon: Lightbulb },
 ];
 
 const FacultyDashboard = () => {
@@ -107,6 +109,7 @@ const FacultyDashboard = () => {
               {activeTab === "upload" && <UploadSection />}
               {activeTab === "activity" && <ActivitySection />}
               {activeTab === "leaderboard" && <LeaderboardSection />}
+              {activeTab === "recommendations" && <RecommendationsSection />}
             </motion.div>
           </AnimatePresence>
         </div>

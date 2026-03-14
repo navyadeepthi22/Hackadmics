@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, X } from "lucide-react";
+import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, X, CalendarX } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
-type UploadStatus = "idle" | "uploading" | "extracting" | "verified" | "failed";
+type UploadStatus = "idle" | "uploading" | "extracting" | "verified" | "rejected_year" | "failed";
 
 interface UploadedFile {
   name: string;
@@ -26,6 +26,16 @@ const EVENT_TYPES = ["Webinar", "FDP", "Seminar", "Workshop", "Conference", "Gue
 const ROLES = ["Resource Person", "Organizer", "Participant", "Attendee", "Co-organizer", "Panelist"];
 const DEPARTMENTS = ["Computer Science", "Electronics", "Mechanical", "Civil", "Mathematics", "Physics"];
 
+// Current academic year: July 2025 – June 2026
+const ACADEMIC_YEAR_START = new Date(2025, 6, 1); // July 1, 2025
+const ACADEMIC_YEAR_END = new Date(2026, 5, 30);  // June 30, 2026
+const ACADEMIC_YEAR_LABEL = "July 2025 – June 2026";
+
+function isWithinAcademicYear(dateStr: string): boolean {
+  const date = new Date(dateStr);
+  return date >= ACADEMIC_YEAR_START && date <= ACADEMIC_YEAR_END;
+}
+
 const UploadSection = () => {
   const [file, setFile] = useState<UploadedFile | null>(null);
   const [role, setRole] = useState("");
@@ -40,16 +50,22 @@ const UploadSection = () => {
     setTimeout(() => {
       setFile((f) => f ? { ...f, status: "extracting" } : null);
       setTimeout(() => {
-        setFile((f) => f ? {
-          ...f,
-          status: "verified",
-          metadata: {
-            facultyName: "Dr. Priya Sharma",
-            eventDate: "March 10, 2026",
-            venue: "VIT Chennai, Auditorium Hall",
-            eventType: "FDP",
-          }
-        } : null);
+        // Simulate: randomly pick a date that may or may not be in academic year
+        const isCurrentYear = Math.random() > 0.3; // 70% chance it's valid
+        const eventDate = isCurrentYear ? "March 10, 2026" : "April 15, 2024";
+
+        const metadata = {
+          facultyName: "Dr. Priya Sharma",
+          eventDate,
+          venue: "VIT Chennai, Auditorium Hall",
+          eventType: "FDP",
+        };
+
+        if (!isWithinAcademicYear(eventDate)) {
+          setFile((f) => f ? { ...f, status: "rejected_year", metadata } : null);
+        } else {
+          setFile((f) => f ? { ...f, status: "verified", metadata } : null);
+        }
       }, 2000);
     }, 1500);
   }, []);
@@ -78,10 +94,11 @@ const UploadSection = () => {
     setDepartment("");
   };
 
-  const statusConfig = {
+  const statusConfig: Record<string, { icon: any; text: string; color: string; animate: boolean }> = {
     uploading: { icon: Loader2, text: "Uploading...", color: "text-primary", animate: true },
     extracting: { icon: Loader2, text: "AI Extracting Metadata...", color: "text-gamification", animate: true },
-    verified: { icon: CheckCircle2, text: "Verified ✓", color: "text-success", animate: false },
+    verified: { icon: CheckCircle2, text: "Verified ✓ (Academic Year Valid)", color: "text-success", animate: false },
+    rejected_year: { icon: CalendarX, text: `Rejected — Not in ${ACADEMIC_YEAR_LABEL}`, color: "text-destructive", animate: false },
     failed: { icon: AlertCircle, text: "Verification Failed", color: "text-destructive", animate: false },
   };
 
@@ -90,6 +107,9 @@ const UploadSection = () => {
       <div>
         <h1 className="text-2xl font-display font-bold text-foreground">Upload Documents</h1>
         <p className="text-muted-foreground mt-1">Upload your certificates and event documents for NAAC verification</p>
+        <Badge variant="outline" className="mt-2 text-xs border-primary/30 text-primary">
+          Academic Year: {ACADEMIC_YEAR_LABEL}
+        </Badge>
       </div>
 
       {/* Drop Zone */}
@@ -121,11 +141,10 @@ const UploadSection = () => {
                   <FileText className="w-5 h-5 text-primary" />
                   <div>
                     <p className="text-sm font-medium text-foreground">{file.name}</p>
-                    {file.status !== "idle" && (
-                      <div className={`flex items-center gap-1.5 mt-0.5 ${statusConfig[file.status]?.color}`}>
+                    {file.status !== "idle" && statusConfig[file.status] && (
+                      <div className={`flex items-center gap-1.5 mt-0.5 ${statusConfig[file.status].color}`}>
                         {(() => {
                           const config = statusConfig[file.status];
-                          if (!config) return null;
                           const Icon = config.icon;
                           return (
                             <>
@@ -143,8 +162,19 @@ const UploadSection = () => {
                 </button>
               </div>
 
+              {/* Rejected Year Warning */}
+              {file.status === "rejected_year" && file.metadata && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 p-3 bg-destructive/5 rounded-lg border border-destructive/20">
+                  <p className="text-xs font-display font-semibold text-destructive mb-1">⚠ Academic Year Mismatch</p>
+                  <p className="text-xs text-muted-foreground">
+                    The event date <strong>{file.metadata.eventDate}</strong> does not fall within the current academic year ({ACADEMIC_YEAR_LABEL}).
+                    Only documents from the current academic year are accepted for verification.
+                  </p>
+                </motion.div>
+              )}
+
               {/* Extracted Metadata */}
-              {file.metadata && (
+              {file.metadata && file.status === "verified" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 p-3 bg-success/5 rounded-lg border border-success/20">
                   <p className="text-xs font-display font-semibold text-success mb-2">AI Extracted Metadata</p>
                   <div className="grid grid-cols-2 gap-2 text-sm">
